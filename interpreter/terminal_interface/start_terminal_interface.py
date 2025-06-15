@@ -270,6 +270,12 @@ def start_terminal_interface(interpreter):
             "type": bool,
         },
         {
+            "name": "show_instructions",
+            "help_text": "display the assembled system message and other instructions then exit",
+            "type": bool,
+            "default": False,
+        },
+        {
             "name": "version",
             "help_text": "get Open Interpreter's version number",
             "type": bool,
@@ -312,7 +318,7 @@ def start_terminal_interface(interpreter):
         )
         sys.argv = sys.argv[:1]
 
-        interpreter.custom_instructions = "UPDATED INSTRUCTIONS: You are in ULTRA FAST, ULTRA CERTAIN mode. Do not ask the user any questions or run code to gathet information. Go as quickly as you can. Run code quickly. Do not plan out loud, simply start doing the best thing. The user expects speed. Trust that the user knows best. Just interpret their ambiguous command as quickly and certainly as possible and try to fulfill it IN ONE COMMAND, assuming they have the right information. If they tell you do to something, just do it quickly in one command, DO NOT try to get more information (for example by running `cat` to get a file's infomration— this is probably unecessary!). DIRECTLY DO THINGS AS FAST AS POSSIBLE."
+        interpreter.custom_instructions = "UPDATED INSTRUCTIONS: You are in ULTRA FAST, ULTRA CERTAIN mode. Do not ask the user any questions or run code to gather information. Go as quickly as you can. Run code quickly. Do not plan out loud, simply start doing the best thing. The user expects speed. Trust that the user knows best. Just interpret their ambiguous command as quickly and certainly as possible and try to fulfill it IN ONE COMMAND, assuming they have the right information. If they tell you do to something, just do it quickly in one command, DO NOT try to get more information (for example by running `cat` to get a file's infomration— this is probably unecessary!). DIRECTLY DO THINGS AS FAST AS POSSIBLE."
 
         files_in_directory = os.listdir()[:100]
         interpreter.custom_instructions += (
@@ -412,6 +418,11 @@ Use """ to write multi-line messages.
         version = pkg_resources.get_distribution("open-interpreter").version
         update_name = "Developer Preview"  # Change this with each major update
         print(f"Open Interpreter {version} {update_name}")
+        return
+
+    if args.show_instructions:
+        # We'll call a method on the interpreter instance to display instructions
+        interpreter.display_full_instructions()
         return
 
     if args.no_highlight_active_line:
@@ -614,46 +625,46 @@ def main():
         try:
             interpreter.computer.terminate()
 
-            if not interpreter.offline and not interpreter.disable_telemetry:
-                feedback = None
-                if len(interpreter.messages) > 3:
-                    feedback = (
-                        input("\n\nWas Open Interpreter helpful? (y/n): ")
-                        .strip()
-                        .lower()
-                    )
-                    if feedback == "y":
-                        feedback = True
-                    elif feedback == "n":
-                        feedback = False
-                    else:
-                        feedback = None
-                    if feedback != None and not interpreter.contribute_conversation:
-                        if interpreter.llm.model == "i":
-                            contribute = "y"
-                        else:
-                            print(
-                                "\nThanks for your feedback! Would you like to send us this chat so we can improve?\n"
-                            )
-                            contribute = input("(y/n): ").strip().lower()
+            # if not interpreter.offline and not interpreter.disable_telemetry:
+            #     feedback = None
+            #     if len(interpreter.messages) > 3:
+            #         feedback = (
+            #             input("\n\nWas Open Interpreter helpful? (y/n): ")
+            #             .strip()
+            #             .lower()
+            #         )
+            #         if feedback == "y":
+            #             feedback = True
+            #         elif feedback == "n":
+            #             feedback = False
+            #         else:
+            #             feedback = None
+            #         if feedback != None and not interpreter.contribute_conversation:
+            #             if interpreter.llm.model == "i":
+            #                 contribute = "y"
+            #             else:
+            #                 print(
+            #                     "\nThanks for your feedback! Would you like to send us this chat so we can improve?\n"
+            #                 )
+            #                 contribute = input("(y/n): ").strip().lower()
 
-                        if contribute == "y":
-                            interpreter.contribute_conversation = True
-                            interpreter.display_message(
-                                "\n*Thank you for contributing!*\n"
-                            )
+            #             if contribute == "y":
+            #                 interpreter.contribute_conversation = True
+            #                 interpreter.display_message(
+            #                     "\n*Thank you for contributing!*\n"
+            #                 )
 
-                if (
-                    interpreter.contribute_conversation or interpreter.llm.model == "i"
-                ) and interpreter.messages != []:
-                    conversation_id = (
-                        interpreter.conversation_id
-                        if hasattr(interpreter, "conversation_id")
-                        else None
-                    )
-                    contribute_conversations(
-                        [interpreter.messages], feedback, conversation_id
-                    )
+            #     if (
+            #         interpreter.contribute_conversation or interpreter.llm.model == "i"
+            #     ) and interpreter.messages != []:
+            #         conversation_id = (
+            #             interpreter.conversation_id
+            #             if hasattr(interpreter, "conversation_id")
+            #             else None
+            #         )
+            #         contribute_conversations(
+            #             [interpreter.messages], feedback, conversation_id
+            #         )
 
         except KeyboardInterrupt:
             pass

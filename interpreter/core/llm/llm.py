@@ -4,6 +4,13 @@ os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
 import sys
 
 import litellm
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    message=r"Pydantic serializer warnings:\s+PydanticSerializationUnexpectedValue\(Expected \d+ fields but got \d+: Expected `(Message|StreamingChoices)`",
+)
 
 litellm.suppress_debug_info = True
 litellm.REPEATED_STREAMING_CHUNK_LIMIT = 99999999
@@ -117,9 +124,9 @@ class Llm:
         if model == "i":
             model = "openai/i"
             if not hasattr(self.interpreter, "conversation_id"):  # Only do this once
-                self.context_window = 7000
-                self.api_key = "x"
+                self.context_window = 8000
                 self.max_tokens = 1000
+                self.api_key = "x"
                 self.api_base = "https://api.openinterpreter.com/v0"
                 self.interpreter.conversation_id = str(uuid.uuid4())
 
@@ -299,23 +306,35 @@ Continuing...
         if hasattr(self.interpreter, "conversation_id"):
             params["conversation_id"] = self.interpreter.conversation_id
 
+        if self.interpreter.debug:
+            # Create a copy for logging to avoid modifying the original params
+            # and to pretty print potentially long messages list
+            log_params = params.copy()
+            if "messages" in log_params:
+                # Truncate messages if they are too long for a single log line
+                # We rely on the more detailed log from respond.py for full message content
+                messages_str = json.dumps(log_params["messages"], indent=2)
+                if len(messages_str) > 1000: # Arbitrary limit for log preview
+                    messages_str = messages_str[:1000] + "\n... (messages truncated in log)"
+                log_params["messages"] = f"(Messages content preview, see log from respond.py for full content)\n{messages_str}"
+            print(f"DEBUG: Llm.run - Calling litellm.completion with parameters (model: {params.get('model')}, api_base: {params.get('api_base', 'N/A')}):\n{json.dumps(log_params, indent=2)}")
+
         # Set some params directly on LiteLLM
         if self.max_budget:
             litellm.max_budget = self.max_budget
         if self.interpreter.verbose:
             litellm.set_verbose = True
 
-        if (
-            self.interpreter.debug == True and False  # DISABLED
-        ):  # debug will equal "server" if we're debugging the server specifically
-            print("\n\n\nOPENAI COMPATIBLE MESSAGES:\n\n\n")
-            for message in messages:
-                if len(str(message)) > 5000:
-                    print(str(message)[:200] + "...")
-                else:
-                    print(message)
-                print("\n")
-            print("\n\n\n")
+        # The previously disabled debug block for OpenAI compatible messages is effectively
+        # covered by the new logging in respond.py and the log_params print above.
+        # If you still need it, you can re-enable it like this:
+        # if self.interpreter.debug == True:
+        #     print("\nDEBUG: Llm.run - OPENAI COMPATIBLE MESSAGES (final before litellm):\n")
+        #     for i, message in enumerate(messages): # messages here is after tt.trim
+        #         content_preview = str(message.get("content", ""))
+        #         if len(content_preview) > 150: content_preview = content_preview[:150] + "... (truncated)"
+        #         print(f"  [{i}] Role: {message.get('role')}, Type: {message.get('type', 'N/A')}, Content Preview: {content_preview}")
+        #     print("--- End of OPENAI COMPATIBLE MESSAGES ---\n")
 
         if self.supports_functions:
             # yield from run_function_calling_llm(self, params)
@@ -440,7 +459,18 @@ def fixed_litellm_completions(**params):
 
     for attempt in range(attempts):
         try:
-            yield from litellm.completion(**params)
+            if interpreter_instance_for_debug and interpreter_instance_for_debug.debug:
+                print(f"DEBUG: fixed_litellm_completions - Sending HTTP request to LLM (model: {params.get('model')}, api_base: {params.get('api_base', 'N/A')}) via litellm.completion")
+            
+            response_stream = litellm.completion(**params)
+            for chunk in response_stream:
+                if interpreter_instance_for_debug and interpreter_instance_for_debug.debug: # Access interpreter via a closure or pass it in
+                    try:
+                        chunk_repr = json.dumps(chunk.dict(), indent=2) if hasattr(chunk, 'dict') else str(chunk)
+                    except:
+                        chunk_repr = str(chunk)
+                    print(f"DEBUG: fixed_litellm_completions - Received raw chunk from litellm:\n{chunk_repr}")
+                yield chunk
             return  # If the completion is successful, exit the function
         except KeyboardInterrupt:
             print("Exiting...")
@@ -464,3 +494,12 @@ def fixed_litellm_completions(**params):
 
     if first_error is not None:
         raise first_error  # If all attempts fail, raise the first error
+
+# Helper to pass interpreter instance to fixed_litellm_completions for debug logging
+# This is a bit of a workaround. A cleaner way would be to make fixed_litellm_completions
+# a method of the Llm class or pass interpreter explicitly.
+interpreter_instance_for_debug = None
+
+def set_interpreter_for_debug_logging(interpreter):
+    global interpreter_instance_for_debug
+    interpreter_instance_for_debug = interpreter

@@ -1,0 +1,66 @@
+2025-06-15T06:20:26.462+0700	[34mINFO[0m	Warning: .env file not found, using environment variables only
+2025-06-15T06:20:26.462+0700	[34mINFO[0m	Loading configuration from: /home/bhd/Documents/Projects/bhd/db-mcp-server/config.json
+2025-06-15T06:20:26.462+0700	[34mINFO[0m	Using database configuration from: /home/bhd/Documents/Projects/bhd/db-mcp-server/config.json
+2025-06-15T06:20:26.463+0700	[33mWARN[0m	Warning: Failed to initialize database: failed to connect to databases: failed to connect to database bide_pg: failed to ping database: dial tcp 127.0.0.1:5433: connect: connection refused
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Detected 1 database connections: [bide_pg]
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Will dynamically generate database tools for each connection
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Found 1 database connections for tool registration: [bide_pg]
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Registering tools for database bide_pg
+2025-06-15T06:20:26.463+0700	[31mERROR[0m	Error registering tools for database bide_pg: failed to get database info for bide_pg: failed to get database: database connection bide_pg not found
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Registering tool 'list_databases' of type 'list_databases' (database: )
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Successfully registered tool list_databases
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Registering tool 'sql' of type 'sql' (database: )
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Successfully registered tool sql
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Registering tool 'db_stats' of type 'db_stats' (database: )
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Successfully registered tool db_stats
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Registering tool 'table_stats' of type 'table_stats' (database: )
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Successfully registered tool table_stats
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Registering tool 'get_indexes' of type 'get_indexes' (database: )
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Successfully registered tool get_indexes
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Registering tool 'get_constraints' of type 'get_constraints' (database: )
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Successfully registered tool get_constraints
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Registering tool 'get_views' of type 'get_views' (database: )
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Successfully registered tool get_views
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Registering tool 'get_types' of type 'get_types' (database: )
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Successfully registered tool get_types
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Registering tool 'get_schemas' of type 'get_schemas' (database: )
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Successfully registered tool get_schemas
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Registering tool 'get_sample_data' of type 'get_sample_data' (database: )
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Successfully registered tool get_sample_data
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Registering tool 'get_unique_values' of type 'get_unique_values' (database: )
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Successfully registered tool get_unique_values
+2025-06-15T06:20:26.463+0700	[33mWARN[0m	Warning: error registering tools: errors occurred while registering tools for 1 databases
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Finished registering tools
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Available database tools:
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	  Database bide_pg:
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - query_bide_pg: Execute SQL queries
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - execute_bide_pg: Execute SQL statements
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - transaction_bide_pg: Manage transactions
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - performance_bide_pg: Analyze query performance
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - schema_bide_pg: Get database schema
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	  Common tools:
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - list_databases: List all available databases with detailed connection information
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - sql: Execute SQL on any database (requires database parameter)
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - db_stats: Retrieve comprehensive database statistics and metrics
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - table_stats: Retrieve detailed statistics for a specific database table
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - get_indexes: Retrieve all indexes from a database with detailed information
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - get_constraints: Retrieve all constraints from a database with detailed information
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - get_views: Retrieve all views from a database with their definitions
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - get_types: Retrieve all custom data types from a database
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - get_schemas: Retrieve all schemas from a database with detailed information
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - get_sample_data: Retrieve a sample of data from a database table
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	    - get_unique_values: Retrieve all unique values from a column in a database table
+2025-06-15T06:20:26.463+0700	[34mINFO[0m	Created default session: default-session
+2025-06-15T06:20:26.755+0700	[34mINFO[0m	Warning: .env file not found, using environment variables only
+2025-06-15T06:20:26.755+0700	[34mINFO[0m	Loading configuration from: /home/bhd/Documents/Projects/bhd/redis-mcp-server/config.json
+2025-06-15T06:20:26.755+0700	[34mINFO[0m	Using configuration from: /home/bhd/Documents/Projects/bhd/redis-mcp-server/config.json
+2025-06-15T06:20:26.755+0700	[34mINFO[0m	Loading Redis configuration from /home/bhd/Documents/Projects/bhd/redis-mcp-server/config.json
+2025-06-15T06:20:26.826+0700	[33mWARN[0m	Failed to add Redis connection redis1: failed to connect to Redis: dial tcp 127.0.0.1:16380: connect: connection refused
+2025-06-15T06:20:26.902+0700	[33mWARN[0m	Failed to add Redis connection redis2: failed to connect to Redis: dial tcp 127.0.0.1:16379: connect: connection refused
+2025-06-15T06:20:26.903+0700	[34mINFO[0m	No Redis connections detected
+2025-06-15T06:20:26.903+0700	[34mINFO[0m	Found 0 Redis connections for tool registration: []
+2025-06-15T06:20:26.903+0700	[34mINFO[0m	No Redis connections available
+2025-06-15T06:20:26.903+0700	[33mWARN[0m	Warning: error registering tools: no Redis connections available
+2025-06-15T06:20:26.903+0700	[34mINFO[0m	Finished registering tools
+2025-06-15T06:20:26.903+0700	[34mINFO[0m	Direct method calls will be handled by the interceptor
+2025-06-15T06:20:26.903+0700	[34mINFO[0m	Created default session: default-session

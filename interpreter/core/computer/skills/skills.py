@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from datetime import datetime
 
 from ....terminal_interface.utils.oi_dir import oi_dir
 from ...utils.lazy_import import lazy_import
@@ -122,9 +123,9 @@ You are creating a new skill. Follow these steps exactly to get me to tell you i
     def name(self, value):
         self._name = value
         print(
-            """
+            f"""
 
-Skill named. Now, follow these next INSTRUCTIONS exactly:
+Skill as {value}. Now, follow these next INSTRUCTIONS exactly:
 
 1. Ask me what the first step is.
 2. When I reply, execute code to accomplish that step. Write comments explaining your reasoning before each line.
@@ -133,7 +134,7 @@ Skill named. Now, follow these next INSTRUCTIONS exactly:
     b. IF you did not complete it correctly, try to fix your code and ask me again.
 4. If I say the skill is complete, or that that was the last step, run `computer.skills.new_skill.save()`.
 
-YOU MUST FOLLOW THESE 4 INSTRUCTIONS **EXACTLY**. I WILL TIP YOU $200.
+YOU MUST FOLLOW THESE 4 INSTRUCTIONS **EXACTLY**. 
 
               """.strip()
         )
@@ -141,9 +142,9 @@ YOU MUST FOLLOW THESE 4 INSTRUCTIONS **EXACTLY**. I WILL TIP YOU $200.
     def add_step(self, step, code):
         self.steps.append(step + "\n\n```python\n" + code + "\n```")
         print(
-            """
+            f"""
 
-Step added. Now, follow these next INSTRUCTIONS exactly:
+Step {step} added. Now, follow these next INSTRUCTIONS exactly:
 
 1. Ask me what the next step is.
 2. When I reply, execute code to accomplish that step.
@@ -152,13 +153,14 @@ Step added. Now, follow these next INSTRUCTIONS exactly:
     b. IF you did not complete it correctly, try to fix your code and ask me again.
 4. If I say the skill is complete, or that that was the last step, run `computer.skills.new_skill.save()`.
 
-YOU MUST FOLLOW THESE 4 INSTRUCTIONS **EXACTLY**. I WILL TIP YOU $200.
+YOU MUST FOLLOW THESE 4 INSTRUCTIONS **EXACTLY**. 
 
         """.strip()
         )
 
     def save(self):
         normalized_name = re.sub("[^0-9a-zA-Z]+", "_", self.name.lower())
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
 
         skill_string = f'''
 import json
@@ -185,7 +187,7 @@ def {normalized_name}(step=0):
         print("The specified step number exceeds the available steps. Please run with a valid step number.")
 '''.strip()
 
-        skill_file_path = os.path.join(self.skills.path, f"{normalized_name}.py")
+        skill_file_path = os.path.join(self.skills.path, f"{normalized_name}_{timestamp}.py")
 
         if not os.path.exists(self.skills.path):
             os.makedirs(self.skills.path)
@@ -198,9 +200,13 @@ def {normalized_name}(step=0):
 
         # Verify that the file was written
         if os.path.exists(skill_file_path):
-            print("SKILL SAVED:", self.name.upper())
-            print(
-                "Teaching session finished. Tell the user that the skill above has been saved. Great work!"
-            )
+            print(f"SKILL SAVED: {self.name.upper()}")
+            print(f"File path: {os.path.abspath(skill_file_path)}")
+            print("\nSteps included in this skill:")
+            for i, step_content in enumerate(self.steps):
+                # Extracting the natural language description part of the step
+                step_description = step_content.split("\n\n```python\n")[0]
+                print(f"  {i+1}. {step_description}")
+            print("\nTeaching session finished. The skill above has been saved. Great work!")
         else:
             print(f"Error: Failed to write skill file to {skill_file_path}")

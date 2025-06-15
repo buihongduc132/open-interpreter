@@ -83,6 +83,15 @@ def respond(interpreter):
         if (
             interpreter.messages[-1]["type"] != "code"
         ):  # If it is, we should run the code (we do below)
+            if interpreter.debug:
+                print(f"\nDEBUG: respond.py - About to call LLM with messages_for_llm:")
+                # Pretty print for readability, especially for long message lists
+                for i, msg in enumerate(messages_for_llm):
+                    content_preview = str(msg.get("content", ""))
+                    if len(content_preview) > 150: # Truncate long content for log
+                        content_preview = content_preview[:150] + "... (truncated)"
+                    print(f"  [{i}] Role: {msg.get('role')}, Type: {msg.get('type', 'N/A')}, Content Preview: {content_preview}")
+                print("--- End of messages_for_llm ---\n")
             try:
                 for chunk in interpreter.llm.run(messages_for_llm):
                     yield {"role": "assistant", **chunk}

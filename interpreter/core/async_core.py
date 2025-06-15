@@ -6,6 +6,7 @@ import socket
 import threading
 import time
 import traceback
+import sys
 from collections import deque
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
@@ -47,7 +48,7 @@ class AsyncInterpreter(OpenInterpreter):
 
         self.respond_thread = None
         self.stop_event = threading.Event()
-        self.output_queue = None
+        self.output_queue = janus.Queue() if "janus" in sys.modules else None # Initialize here
         self.unsent_messages = deque()
         self.id = os.getenv("INTERPRETER_ID", datetime.now().timestamp())
         self.print = False  # Will print output
@@ -103,8 +104,8 @@ class AsyncInterpreter(OpenInterpreter):
             self.respond_thread.start()
 
     async def output(self):
-        if self.output_queue == None:
-            self.output_queue = janus.Queue()
+        if self.output_queue is None and "janus" in sys.modules: # Should already be initialized
+            self.output_queue = janus.Queue() # Fallback, but ideally not needed
         return await self.output_queue.async_q.get()
 
     def respond(self, run_code=None):
@@ -438,6 +439,9 @@ def create_router(async_interpreter):
     async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
 
+        receive_input_task = None
+        send_output_task = None
+
         try:  # solving it ;)/ # killian super wrote this
 
             async def receive_input():
@@ -459,11 +463,30 @@ def create_router(async_interpreter):
                                         data["auth"]
                                     ):
                                         authenticated = True
-                                        await websocket.send_text(
-                                            json.dumps({"auth": True})
-                                        )
+                                        try:
+                                            if websocket.client_state == WebSocketState.CONNECTED:
+                                                await websocket.send_text(
+                                                    json.dumps({"auth": True})
+                                                )
+                                        except RuntimeError as e_auth_true:
+                                            if "Unexpected ASGI message 'websocket.send'" in str(e_auth_true):
+                                                # This can happen if the socket is closing during a server reload
+                                                print(f"Debug: Failed to send auth=True, socket likely closing: {e_auth_true}")
+                                            else:
+                                                raise # Re-raise other RuntimeErrors
                             if not authenticated:
-                                await websocket.send_text(json.dumps({"auth": False}))
+                                try:
+                                    if websocket.client_state == WebSocketState.CONNECTED:
+                                        await websocket.send_text(json.dumps({"auth": False}))
+                                    # Optional: log that client disconnected before auth status could be sent
+                                    # else:
+                                    #     print("Debug: Client disconnected before 'auth: False' could be sent during auth check.")
+                                except RuntimeError as e_auth_false:
+                                    if "Unexpected ASGI message 'websocket.send'" in str(e_auth_false):
+                                        # This can happen if the socket is closing during a server reload
+                                        print(f"Debug: Failed to send auth=False, socket likely closing: {e_auth_false}")
+                                    else:
+                                        raise # Re-raise other RuntimeErrors
                             continue
 
                         if data.get("type") == "websocket.receive":
@@ -506,48 +529,104 @@ def create_router(async_interpreter):
                         print("\n\n--- (ERROR ABOVE) ---\n\n")
 
             async def send_output():
-                while True:
-                    if websocket.client_state != WebSocketState.CONNECTED:
-                        return
-                    try:
-                        # First, try to send any unsent messages
-                        while async_interpreter.unsent_messages:
-                            output = async_interpreter.unsent_messages[0]
-                            if async_interpreter.debug:
-                                print("This was unsent, sending it again:", output)
+                if async_interpreter.debug:
+                    print("Debug: send_output task started.")
 
-                            success = await send_message(output)
+                while True:
+                    # If websocket is not connected, exit the loop.
+                    if websocket.client_state != WebSocketState.CONNECTED:
+                        if async_interpreter.debug:
+                            print("Debug: send_output detected disconnected websocket, returning.")
+                        return
+
+                    current_output_item = None
+                    is_from_unsent_queue = False
+
+                    try:
+                        # Prioritize unsent messages
+                        while async_interpreter.unsent_messages:
+                            current_output_item = async_interpreter.unsent_messages[0]
+                            is_from_unsent_queue = True
+                            if async_interpreter.debug:
+                                print("Processing item from unsent_messages queue:", current_output_item)
+                            
+                            success = await send_message(current_output_item)
                             if success:
                                 async_interpreter.unsent_messages.popleft()
-
-                        # If we've sent all unsent messages, get a new output
-                        if not async_interpreter.unsent_messages:
-                            output = await async_interpreter.output()
-                            success = await send_message(output)
-                            if not success:
-                                async_interpreter.unsent_messages.append(output)
                                 if async_interpreter.debug:
-                                    print(
-                                        f"Added message to unsent_messages queue after failed attempts: {output}"
-                                    )
+                                    print("Successfully sent item from unsent_messages, removed from queue.")
+                            else:
+                                # If it failed to send again, break from this inner loop to allow a small delay via asyncio.sleep below
+                                break 
+                        
+                        # If all unsent messages are cleared or an unsent message failed to send again,
+                        # try to get a new message if the unsent queue is empty.
+                        if not async_interpreter.unsent_messages:
+                            is_from_unsent_queue = False # Reset flag
+                            if async_interpreter.output_queue is None:
+                                await asyncio.sleep(0.01) # Wait for queue to be initialized
+                                continue
+                            
+                            if async_interpreter.debug:
+                                print("Awaiting item from main output_queue...")
+                            current_output_item = await async_interpreter.output() # This is the get()
+                            if async_interpreter.debug:
+                                print("Got item from main output_queue:", current_output_item)
+                            
+                            success = await send_message(current_output_item)
+                            if not success: # Failed to send new item
+                                async_interpreter.unsent_messages.append(current_output_item)
+                                if async_interpreter.debug:
+                                    print("Failed to send new item, added to unsent_messages queue:", current_output_item)
 
+                    except (asyncio.QueueEmpty, janus.errors.QueueEmpty) as e:
+                        if async_interpreter.debug:
+                            print(f"Debug: Output queue empty/closed ({type(e).__name__}), send_output loop may exit or wait.")
+                        if async_interpreter.stop_event.is_set(): # Check if interpreter is stopping
+                            if async_interpreter.debug: print("Debug: Interpreter stop_event set, exiting send_output loop.")
+                            break
+                        if async_interpreter.output_queue and async_interpreter.output_queue.closed:
+                            if async_interpreter.debug:
+                                print("Debug: Output queue is closed. Exiting send_output loop.")
+                            break # Exit loop if queue is empty and closed
+                        await asyncio.sleep(0.01) # Wait a bit if queue is temporarily empty but not closed
+                        continue # Continue to the next iteration of the while loop
+                    except asyncio.CancelledError:
+                        if async_interpreter.debug:
+                            print("Debug: send_output task explicitly cancelled.")
+                        # Ensure queue items are marked done if an item was fetched before cancellation
+                        # This is tricky as we don't know if current_output_item was from the main queue here.
+                        raise # Re-raise CancelledError to allow cleanup by FastAPI/Uvicorn
                     except Exception as e:
                         error = traceback.format_exc() + "\n" + str(e)
-                        error_message = {
-                            "role": "server",
-                            "type": "error",
-                            "content": error,
-                        }
-                        async_interpreter.unsent_messages.append(error_message)
-                        async_interpreter.unsent_messages.append(complete_message)
-                        print("\n\n--- ERROR (will be sent when possible): ---\n\n")
-                        print(error)
-                        print(
-                            "\n\n--- (ERROR ABOVE WILL BE SENT WHEN POSSIBLE) ---\n\n"
-                        )
+                        if async_interpreter.debug:
+                            print(f"Debug: Exception in send_output loop: {error}")
+                        # Add to unsent messages if it's a new item and an error occurred
+                        if current_output_item and not is_from_unsent_queue:
+                             async_interpreter.unsent_messages.append(current_output_item)
+                        await asyncio.sleep(0.01) # Avoid tight loop on persistent error
+                    finally:
+                        if current_output_item is not None and not is_from_unsent_queue:
+                            # Only call task_done if the item was freshly obtained from the main queue
+                            if async_interpreter.output_queue and async_interpreter.output_queue.async_q:
+                                try:
+                                    async_interpreter.output_queue.async_q.task_done()
+                                    if async_interpreter.debug:
+                                        print("task_done() called for item:", current_output_item)
+                                except ValueError: # task_done() called too many times
+                                    if async_interpreter.debug:
+                                        print(f"Debug: task_done() called too many times or on non-pending task for item: {current_output_item}")
+                                except Exception as e_td:
+                                    if async_interpreter.debug:
+                                        print(f"Debug: Error in task_done for item {current_output_item}: {e_td}")
+
+                if async_interpreter.debug:
+                    print("Debug: send_output task finished.")
 
             async def send_message(output):
                 if isinstance(output, dict) and "id" in output:
+                    # This 'id' is for client-side ACK, not related to task tracking
+                    # but good to be aware of if debugging message flows.
                     id = output["id"]
                 else:
                     id = shortuuid.uuid()
@@ -615,7 +694,10 @@ def create_router(async_interpreter):
 
                 return False
 
-            await asyncio.gather(receive_input(), send_output())
+            receive_input_task = asyncio.create_task(receive_input())
+            send_output_task = asyncio.create_task(send_output())
+            
+            await asyncio.gather(receive_input_task, send_output_task)
 
         except Exception as e:
             error = traceback.format_exc() + "\n" + str(e)
@@ -629,6 +711,16 @@ def create_router(async_interpreter):
             print("\n\n--- ERROR (will be sent when possible): ---\n\n")
             print(error)
             print("\n\n--- (ERROR ABOVE WILL BE SENT WHEN POSSIBLE) ---\n\n")
+        finally:
+            # Ensure tasks are cancelled on exit, e.g. if client disconnects abruptly
+            if receive_input_task and not receive_input_task.done():
+                if async_interpreter.debug: print("Debug: Cancelling receive_input_task in finally block.")
+                receive_input_task.cancel()
+            if send_output_task and not send_output_task.done():
+                if async_interpreter.debug: print("Debug: Cancelling send_output_task in finally block.")
+                send_output_task.cancel()
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.close()
 
     # TODO
     @router.post("/")
@@ -953,9 +1045,11 @@ class Server:
     DEFAULT_PORT = 8000
 
     def __init__(self, async_interpreter, host=None, port=None):
+        self.async_interpreter = async_interpreter # Store for shutdown handler
         self.app = FastAPI()
         router = create_router(async_interpreter)
         self.authenticate = authenticate_function
+
 
         # Add authentication middleware
         @self.app.middleware("http")
@@ -973,6 +1067,56 @@ class Server:
                     status_code=HTTP_403_FORBIDDEN,
                     content={"detail": "Authentication failed"},
                 )
+
+        @self.app.on_event("shutdown")
+        async def shutdown_event_handler():
+            print("FastAPI app is shutting down. Cleaning up AsyncInterpreter tasks...")
+            
+            if self.async_interpreter.stop_event:
+                print("Setting stop_event for AsyncInterpreter.")
+                self.async_interpreter.stop_event.set()
+
+            if self.async_interpreter.respond_thread and self.async_interpreter.respond_thread.is_alive():
+                print("Attempting to join respond_thread...")
+                self.async_interpreter.respond_thread.join(timeout=5.0) # Wait up to 5 seconds
+                if self.async_interpreter.respond_thread.is_alive():
+                    print("respond_thread did not join in time.")
+                else:
+                    print("respond_thread joined successfully.")
+            
+            if self.async_interpreter.output_queue:
+                # To help unblock the send_output task if it's waiting on output_queue.async_q.get()
+                # we can try putting a sentinel value or closing the sync side which might unblock async_q.get()
+                # if janus handles this transition.
+                # However, janus.Queue.close() is the primary mechanism.
+                # If send_output_task is stuck on `await async_interpreter.output()`,
+                # closing the queue should make `get()` raise an exception or return a sentinel.
+                
+                # It's also important that send_output_task itself is cancelled if it's still running.
+                # FastAPI/Uvicorn should attempt to cancel tasks associated with active connections/lifespan.
+                # The `finally` block in `websocket_endpoint` also tries to cancel these.
+
+                print("Closing AsyncInterpreter output_queue...")
+                try:
+                    if not self.async_interpreter.output_queue.closed:
+                        self.async_interpreter.output_queue.close()
+                        # Wait for queue to be fully processed or closed.
+                        # This join might be interrupted by CancelledError if the shutdown_event_handler itself is cancelled.
+                        try:
+                            if async_interpreter.debug:
+                                print("Debug: Attempting to join output_queue.async_q in shutdown handler...")
+                            await asyncio.wait_for(self.async_interpreter.output_queue.async_q.join(), timeout=5.0)
+                            if async_interpreter.debug:
+                                print("Debug: AsyncInterpreter output_queue.async_q joined successfully in shutdown handler.")
+                        except asyncio.TimeoutError:
+                            print("Warning: Timeout waiting for output_queue.async_q to join.")
+                        except asyncio.CancelledError:
+                            print("Warning: output_queue.async_q join cancelled.")
+                    # else: # This might be too noisy if queue is often closed before this point
+                        # print("AsyncInterpreter output_queue was already closed when shutdown_event_handler ran.")
+                except Exception as e:
+                    print(f"Error during output_queue cleanup: {e} (Traceback: {traceback.format_exc()})")
+            print("AsyncInterpreter cleanup tasks initiated.")
 
         self.app.include_router(router)
         h = host or os.getenv("INTERPRETER_HOST", Server.DEFAULT_HOST)
@@ -1017,7 +1161,8 @@ class Server:
             print(f"Server will run at http://{self.host}:{self.port}")
 
         self.uvicorn_server.run()
-
+        # The cleanup_tasks method added by the user is called after uvicorn.run() finishes for the main process.
+        # The FastAPI shutdown event handles worker cleanup during reloads.
         # for _ in range(retries):
         #     try:
         #         self.uvicorn_server.run()
@@ -1032,4 +1177,4 @@ class Server:
         #             )
         #     except:
         #         print("An unexpected error occurred:", traceback.format_exc())
-        #         print("Server restarting.")
+        #         print("Server restarting.")        

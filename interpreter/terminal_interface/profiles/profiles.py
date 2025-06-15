@@ -152,7 +152,8 @@ def apply_profile(interpreter, profile, profile_path):
     ):  # Remember to update this version number at the top of the file ^
         print("")
         print(
-            "We have updated our profile file format. Would you like to migrate your profile file to the new format? No data will be lost."
+            f"""We have updated our profile file format to {OI_VERSION}, your version: {profile.get("version")}.
+Would you like to migrate your profile file to the new format? No data will be lost."""
         )
         print("")
         message = input("(y/n) ")
@@ -185,11 +186,24 @@ def apply_profile(interpreter, profile, profile_path):
             print("Skipping loading profile...")
             print("")
             # If the migration is skipped, add the version number to the end of the file
+            # if profile_path.endswith("default.yaml"):
             if profile_path.endswith("default.yaml"):
                 with open(profile_path, "a") as file:
                     file.write(
                         f"\nversion: {OI_VERSION}  # Profile version (do not modify)"
                     )
+
+
+#             if "version" not in profile:
+#                 with open(profile_path, "a") as file:
+#                     file.write(
+#                         f"\nversion: {OI_VERSION}  # Profile version (do not modify)"
+#                     )
+#                     print(f"Added version: {OI_VERSION} to: {profile_path}")
+#             else: 
+#                 print(f"""Old version existed. Not automatically adding, please update version yourself, Set:
+# version: {OI_VERSION}
+# into profile at {profile_path}""")
             return interpreter
 
     if "system_message" in profile:
@@ -198,6 +212,8 @@ def apply_profile(interpreter, profile, profile_path):
         )
         time.sleep(2)
         interpreter.display_message("---")
+
+    print(f'profile: {profile}')
 
     if "computer" in profile and "languages" in profile["computer"]:
         # this is handled specially
@@ -560,6 +576,7 @@ version: {OI_VERSION}  # Profile version (do not modify)
 
 
 def apply_profile_to_object(obj, profile):
+    print(f'profile: {profile} | {obj}')
     for key, value in profile.items():
         if isinstance(value, dict):
             if (

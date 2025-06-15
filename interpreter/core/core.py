@@ -17,6 +17,7 @@ from .computer.computer import Computer
 from .default_system_message import default_system_message
 from .llm.llm import Llm
 from .respond import respond
+from .render_message import render_message # Import for rendering
 from .utils.telemetry import send_telemetry
 from .utils.truncate_output import truncate_output
 
@@ -443,3 +444,45 @@ class OpenInterpreter:
     def get_oi_dir(self):
         # Again, just handy for start_script in profiles.
         return oi_dir
+
+    def get_assembled_system_message_for_display(self):
+        """
+        Assembles the system message content for display purposes.
+        This is similar to the logic in respond.py but focused on retrieval.
+        """
+        system_message_content = self.system_message
+
+        # Add language-specific system messages
+        if hasattr(self, 'computer') and hasattr(self.computer, 'terminal'):
+            for language in self.computer.terminal.languages:
+                if hasattr(language, "system_message") and language.system_message:
+                    system_message_content += "\n\n" + language.system_message
+
+        # Add custom instructions
+        if self.custom_instructions:
+            system_message_content += "\n\n" + self.custom_instructions
+
+        # Add computer API system message
+        if hasattr(self, 'computer') and self.computer.import_computer_api:
+            if self.computer.system_message and self.computer.system_message not in system_message_content:
+                system_message_content += "\n\n" + self.computer.system_message
+        
+        # Render the assembled message
+        rendered_content = render_message(self, system_message_content)
+        
+        return rendered_content
+
+    def display_full_instructions(self):
+        """
+        Prints the fully assembled system message and other relevant instructions.
+        """
+        print("\n--- Assembled System Message (for LLM) ---")
+        assembled_system_message = self.get_assembled_system_message_for_display()
+        print(assembled_system_message)
+        print("\n--- End of Assembled System Message ---\n")
+
+        # You could add more information here if needed, e.g.:
+        # print(f"Auto-run: {self.auto_run}")
+        # print(f"Safe Mode: {self.safe_mode}")
+        # print(f"LLM Model: {self.llm.model}")
+        # print(f"LLM API Base: {self.llm.api_base}")
