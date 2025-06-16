@@ -8,6 +8,9 @@ from .modules.window_manager import WindowManager
 from .modules.application_manager import ApplicationManager
 from .modules.dialog_handler import DialogHandler
 from .modules.workflow_automation import WorkflowAutomation
+from .modules.text_processing import TextProcessor
+from .modules.screen_capture import ScreenCapture
+from .modules.ocr import OCRProcessor
 from .modules.error_handler import (
     error_handler, require_linux, require_atspi, with_error_handling,
     ASQError, PlatformNotSupportedError, ATSPINotAvailableError
@@ -42,6 +45,9 @@ class ASQ:
         self.application_manager = ApplicationManager(self)
         self.dialog_handler = DialogHandler(self)
         self.workflow_automation = WorkflowAutomation(self)
+        self.text_processing = TextProcessor(self)
+        self.screen_capture = ScreenCapture(self)
+        self.ocr = OCRProcessor(self)
     
     def _check_availability(self):
         """Check if ASQ is available on this system."""
@@ -636,6 +642,250 @@ class ASQ:
         """
         result = self.form_workflow(form_data)
         return result.status.value == "success"
+    
+    # Text Processing Methods
+    def extract_text(self, selector: str) -> Optional[str]:
+        """Extract text content from a specific element.
+        
+        Args:
+            selector: Element selector
+            
+        Returns:
+            Text content or None if element not found
+        """
+        return self.text_processing.extract_text_from_element(selector)
+    
+    def search_text(self, search_term: str, case_sensitive: bool = False, 
+                   regex: bool = False) -> List[Any]:
+        """Search for text in the current interface.
+        
+        Args:
+            search_term: Text to search for
+            case_sensitive: Whether search should be case sensitive
+            regex: Whether search_term is a regular expression
+            
+        Returns:
+            List of TextMatch objects
+        """
+        return self.text_processing.search_text(search_term, case_sensitive, regex)
+    
+    def replace_text(self, selector: str, old_text: str, new_text: str) -> bool:
+        """Replace text in a text field.
+        
+        Args:
+            selector: Selector for the text field
+            old_text: Text to replace
+            new_text: Replacement text
+            
+        Returns:
+            True if replacement was successful
+        """
+        return self.text_processing.replace_text_in_field(selector, old_text, new_text)
+    
+    def copy_text(self, selector: str) -> Optional[str]:
+        """Copy text from an element to clipboard.
+        
+        Args:
+            selector: Element selector
+            
+        Returns:
+            Copied text or None if failed
+        """
+        return self.text_processing.copy_text_from_element(selector)
+    
+    def paste_text(self, selector: str, text: str) -> bool:
+        """Paste text to an element via clipboard.
+        
+        Args:
+            selector: Element selector
+            text: Text to paste
+            
+        Returns:
+            True if paste was successful
+        """
+        return self.text_processing.paste_text_to_element(selector, text)
+    
+    def format_text(self, selector: str, formatting: str) -> bool:
+        """Apply text formatting to a field.
+        
+        Args:
+            selector: Selector for the text field
+            formatting: Formatting to apply ('bold', 'italic', 'underline', etc.)
+            
+        Returns:
+            True if formatting was applied successfully
+        """
+        return self.text_processing.format_text_in_field(selector, formatting)
+    
+    # Screen Capture Methods
+    def take_screenshot(self, save_path: Optional[str] = None, 
+                       return_base64: bool = True) -> Optional[Any]:
+        """Take a screenshot of the entire screen.
+        
+        Args:
+            save_path: Optional path to save screenshot
+            return_base64: Whether to include base64 data in result
+            
+        Returns:
+            ScreenshotInfo object or None if failed
+        """
+        return self.screen_capture.take_screenshot(save_path, return_base64)
+    
+    def screenshot_element(self, selector: str, save_path: Optional[str] = None,
+                          return_base64: bool = True) -> Optional[Any]:
+        """Take a screenshot of a specific element.
+        
+        Args:
+            selector: Element selector
+            save_path: Optional path to save screenshot
+            return_base64: Whether to include base64 data in result
+            
+        Returns:
+            ScreenshotInfo object or None if failed
+        """
+        return self.screen_capture.take_element_screenshot(selector, save_path, return_base64)
+    
+    def compare_screenshots(self, image1_path: str, image2_path: str, 
+                           threshold: float = 0.95) -> Dict[str, Any]:
+        """Compare two screenshots for similarity.
+        
+        Args:
+            image1_path: Path to first image
+            image2_path: Path to second image
+            threshold: Similarity threshold (0.0 to 1.0)
+            
+        Returns:
+            Dictionary with comparison results
+        """
+        return self.screen_capture.compare_screenshots(image1_path, image2_path, threshold)
+    
+    def wait_for_visual_change(self, timeout: float = 10.0, 
+                              check_interval: float = 1.0) -> bool:
+        """Wait for visual change on screen.
+        
+        Args:
+            timeout: Maximum time to wait
+            check_interval: How often to check for changes
+            
+        Returns:
+            True if visual change detected
+        """
+        return self.screen_capture.wait_for_visual_change(timeout, check_interval)
+    
+    def verify_element_visible(self, selector: str) -> bool:
+        """Verify an element is visually present on screen.
+        
+        Args:
+            selector: Element selector
+            
+        Returns:
+            True if element is visible
+        """
+        return self.screen_capture.verify_element_visible(selector)
+    
+    # OCR Methods
+    def extract_text_from_image(self, image_path: str, 
+                               engine: Optional[str] = None,
+                               language: str = 'eng') -> Optional[Any]:
+        """Extract text from an image file using OCR.
+        
+        Args:
+            image_path: Path to image file
+            engine: OCR engine to use ('tesseract', 'easyocr', 'paddleocr')
+            language: Language code for OCR
+            
+        Returns:
+            OCRResult object or None if failed
+        """
+        return self.ocr.extract_text_from_image(image_path, engine, language)
+    
+    def extract_text_from_screen(self, region: Optional[Tuple[int, int, int, int]] = None,
+                                engine: Optional[str] = None,
+                                language: str = 'eng') -> Optional[Any]:
+        """Extract text from screen or screen region using OCR.
+        
+        Args:
+            region: Optional (x, y, width, height) region to capture
+            engine: OCR engine to use
+            language: Language code for OCR
+            
+        Returns:
+            OCRResult object or None if failed
+        """
+        return self.ocr.extract_text_from_screen(region, engine, language)
+    
+    def extract_text_from_element_ocr(self, selector: str,
+                                     engine: Optional[str] = None,
+                                     language: str = 'eng') -> Optional[Any]:
+        """Extract text from a specific element using OCR.
+        
+        Args:
+            selector: Element selector
+            engine: OCR engine to use
+            language: Language code for OCR
+            
+        Returns:
+            OCRResult object or None if failed
+        """
+        return self.ocr.extract_text_from_element(selector, engine, language)
+    
+    def find_text_in_image(self, image_path: str, search_text: str,
+                          engine: Optional[str] = None,
+                          language: str = 'eng',
+                          case_sensitive: bool = False) -> List[Dict[str, Any]]:
+        """Find specific text in an image using OCR.
+        
+        Args:
+            image_path: Path to image file
+            search_text: Text to search for
+            engine: OCR engine to use
+            language: Language code for OCR
+            case_sensitive: Whether search should be case sensitive
+            
+        Returns:
+            List of matches with bounding box information
+        """
+        return self.ocr.find_text_in_image(image_path, search_text, engine, language, case_sensitive)
+    
+    def get_text_at_position(self, x: int, y: int, 
+                            region_size: int = 100,
+                            engine: Optional[str] = None,
+                            language: str = 'eng') -> Optional[str]:
+        """Get text at a specific screen position using OCR.
+        
+        Args:
+            x: X coordinate
+            y: Y coordinate
+            region_size: Size of region around position to capture
+            engine: OCR engine to use
+            language: Language code for OCR
+            
+        Returns:
+            Text found at position or None
+        """
+        return self.ocr.get_text_at_position(x, y, region_size, engine, language)
+    
+    # Utility Methods
+    def get_available_ocr_engines(self) -> List[str]:
+        """Get list of available OCR engines.
+        
+        Returns:
+            List of available engine names
+        """
+        return self.ocr.get_available_engines()
+    
+    def get_available_screenshot_backends(self) -> List[str]:
+        """Get list of available screenshot backends.
+        
+        Returns:
+            List of available backend names
+        """
+        return self.screen_capture.get_available_backends()
+    
+    def cleanup_temp_files(self):
+        """Clean up temporary files created by ASQ modules."""
+        self.ocr.cleanup_temp_files()
+        self.screen_capture.cleanup_screenshots(older_than_hours=1)
 
 
 class ASQCollection:
