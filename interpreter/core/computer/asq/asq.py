@@ -5,6 +5,9 @@ from typing import Optional, List, Dict, Any
 from .modules.element_finder import ElementFinder
 from .modules.form_automation import FormAutomation
 from .modules.window_manager import WindowManager
+from .modules.application_manager import ApplicationManager
+from .modules.dialog_handler import DialogHandler
+from .modules.workflow_automation import WorkflowAutomation
 from .modules.error_handler import (
     error_handler, require_linux, require_atspi, with_error_handling,
     ASQError, PlatformNotSupportedError, ATSPINotAvailableError
@@ -36,6 +39,9 @@ class ASQ:
         self.element_finder = ElementFinder(self)
         self.form_automation = FormAutomation(self)
         self.window_manager = WindowManager(self)
+        self.application_manager = ApplicationManager(self)
+        self.dialog_handler = DialogHandler(self)
+        self.workflow_automation = WorkflowAutomation(self)
     
     def _check_availability(self):
         """Check if ASQ is available on this system."""
@@ -420,6 +426,216 @@ class ASQ:
             if self.computer.verbose:
                 print(f"Error in get_text_if_exists '{selector}': {e}")
         return None
+    
+    # High-level application management methods
+    def launch_app(self, app_name: str, app_path: Optional[str] = None, 
+                   wait_for_window: bool = True, timeout: float = 10.0) -> bool:
+        """Launch an application by name or path.
+        
+        Args:
+            app_name: Name of the application to launch
+            app_path: Optional path to application executable
+            wait_for_window: Whether to wait for application window to appear
+            timeout: Maximum time to wait for application to start
+            
+        Returns:
+            True if application was launched successfully
+        """
+        return self.application_manager.launch_application(app_name, app_path, wait_for_window, timeout)
+    
+    def close_app(self, app_name: str, force: bool = False) -> bool:
+        """Close an application gracefully or forcefully.
+        
+        Args:
+            app_name: Name of the application to close
+            force: Whether to force close the application
+            
+        Returns:
+            True if application was closed successfully
+        """
+        return self.application_manager.close_application(app_name, force)
+    
+    def switch_to_app(self, app_name: str) -> bool:
+        """Switch focus to a specific application.
+        
+        Args:
+            app_name: Name of the application to focus
+            
+        Returns:
+            True if application was focused successfully
+        """
+        return self.application_manager.switch_to_application(app_name)
+    
+    def get_running_apps(self) -> List[Any]:
+        """Get list of currently running applications.
+        
+        Returns:
+            List of ApplicationInfo objects
+        """
+        return self.application_manager.get_running_applications()
+    
+    def is_app_running(self, app_name: str) -> bool:
+        """Check if an application is currently running.
+        
+        Args:
+            app_name: Name of the application to check
+            
+        Returns:
+            True if application is running
+        """
+        return self.application_manager.is_application_running(app_name)
+    
+    # High-level dialog handling methods
+    def handle_dialog(self, action: str = "ok") -> bool:
+        """Handle the current dialog with specified action.
+        
+        Args:
+            action: Action to take ("ok", "cancel", "yes", "no")
+            
+        Returns:
+            True if dialog was handled successfully
+        """
+        return self.dialog_handler.handle_alert_dialog(action)
+    
+    def handle_file_dialog(self, dialog_type: str, file_path: Optional[str] = None, 
+                          filename: Optional[str] = None) -> bool:
+        """Handle file dialogs (open, save, browse).
+        
+        Args:
+            dialog_type: Type of file dialog ("open", "save", "browse")
+            file_path: Path to file or directory
+            filename: Name of file (for save dialogs)
+            
+        Returns:
+            True if dialog was handled successfully
+        """
+        return self.dialog_handler.handle_file_dialog(dialog_type, file_path, filename)
+    
+    def login(self, username: str, password: str, remember_me: bool = False) -> bool:
+        """Handle login dialog or form.
+        
+        Args:
+            username: Username to enter
+            password: Password to enter
+            remember_me: Whether to check "remember me" option
+            
+        Returns:
+            True if login was successful
+        """
+        return self.dialog_handler.handle_login_dialog(username, password, remember_me)
+    
+    def get_dialog_text(self) -> Optional[str]:
+        """Get text content from current dialog.
+        
+        Returns:
+            Dialog text content or None if no dialog
+        """
+        return self.dialog_handler.get_dialog_text()
+    
+    # High-level workflow methods
+    def login_workflow(self, username: str, password: str, 
+                      app_name: Optional[str] = None, remember_me: bool = False) -> Any:
+        """Execute a complete login workflow.
+        
+        Args:
+            username: Username to enter
+            password: Password to enter
+            app_name: Optional application name to focus first
+            remember_me: Whether to check remember me option
+            
+        Returns:
+            WorkflowResult with login status
+        """
+        return self.workflow_automation.login_workflow(username, password, app_name, remember_me)
+    
+    def form_workflow(self, form_data: Dict[str, str], submit_button: str = "Submit") -> Any:
+        """Execute a complete form submission workflow.
+        
+        Args:
+            form_data: Dictionary of field names to values
+            submit_button: Name of submit button
+            
+        Returns:
+            WorkflowResult with submission status
+        """
+        return self.workflow_automation.form_submission_workflow(form_data, submit_button)
+    
+    def file_workflow(self, operation: str, file_path: str, 
+                     app_name: Optional[str] = None) -> Any:
+        """Execute a file operation workflow (open, save, etc.).
+        
+        Args:
+            operation: Type of operation ("open", "save", "save_as")
+            file_path: Path to file
+            app_name: Optional application name
+            
+        Returns:
+            WorkflowResult with operation status
+        """
+        return self.workflow_automation.file_operation_workflow(operation, file_path, app_name)
+    
+    def startup_workflow(self, app_name: str, initial_actions: Optional[List[Dict[str, Any]]] = None) -> Any:
+        """Execute application startup workflow with initial setup.
+        
+        Args:
+            app_name: Name of application to start
+            initial_actions: Optional list of initial actions to perform
+            
+        Returns:
+            WorkflowResult with startup status
+        """
+        return self.workflow_automation.application_startup_workflow(app_name, initial_actions)
+    
+    # Convenience methods for common tasks
+    def open_file(self, file_path: str, app_name: Optional[str] = None) -> bool:
+        """Open a file in the specified or default application.
+        
+        Args:
+            file_path: Path to file to open
+            app_name: Optional application name
+            
+        Returns:
+            True if file was opened successfully
+        """
+        result = self.file_workflow("open", file_path, app_name)
+        return result.status.value == "success"
+    
+    def save_file(self, file_path: str, app_name: Optional[str] = None) -> bool:
+        """Save current file with specified path.
+        
+        Args:
+            file_path: Path where to save the file
+            app_name: Optional application name
+            
+        Returns:
+            True if file was saved successfully
+        """
+        result = self.file_workflow("save", file_path, app_name)
+        return result.status.value == "success"
+    
+    def quick_login(self, username: str, password: str) -> bool:
+        """Quick login without workflow complexity.
+        
+        Args:
+            username: Username to enter
+            password: Password to enter
+            
+        Returns:
+            True if login was successful
+        """
+        return self.login(username, password)
+    
+    def fill_and_submit(self, form_data: Dict[str, str]) -> bool:
+        """Fill form and submit in one operation.
+        
+        Args:
+            form_data: Dictionary of field names to values
+            
+        Returns:
+            True if form was filled and submitted successfully
+        """
+        result = self.form_workflow(form_data)
+        return result.status.value == "success"
 
 
 class ASQCollection:
