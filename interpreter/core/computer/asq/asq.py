@@ -2,6 +2,10 @@ import platform
 import sys
 from typing import Optional, List, Dict, Any
 
+from .modules.element_finder import ElementFinder
+from .modules.form_automation import FormAutomation
+from .modules.window_manager import WindowManager
+
 
 class ASQ:
     """
@@ -17,6 +21,11 @@ class ASQ:
         self.computer = computer
         self._asq_available = None
         self._check_availability()
+        
+        # Initialize modules
+        self.element_finder = ElementFinder(self)
+        self.form_automation = FormAutomation(self)
+        self.window_manager = WindowManager(self)
     
     def _check_availability(self):
         """Check if ASQ is available on this system."""
@@ -147,6 +156,115 @@ class ASQ:
             if self.computer.verbose:
                 print(f"Error waiting for element '{selector}': {e}")
             return False
+    
+    # High-level methods using modules
+    def fill_form(self, form_data: Dict[str, str], form_selector: Optional[str] = None) -> Dict[str, bool]:
+        """Fill out a form with provided data.
+        
+        Args:
+            form_data: Dictionary mapping field names to values
+            form_selector: Optional selector to scope to specific form
+            
+        Returns:
+            Dictionary mapping field names to success status
+        """
+        return self.form_automation.fill_form(form_data, form_selector)
+    
+    def submit_form(self, submit_button: str = "Submit") -> bool:
+        """Submit a form by clicking the submit button.
+        
+        Args:
+            submit_button: Name or text of the submit button
+            
+        Returns:
+            True if form was submitted successfully
+        """
+        return self.form_automation.submit_form(submit_button)
+    
+    def clear_form(self, form_selector: Optional[str] = None) -> bool:
+        """Clear all fields in a form.
+        
+        Args:
+            form_selector: Optional selector to scope to specific form
+            
+        Returns:
+            True if form was cleared successfully
+        """
+        return self.form_automation.clear_form(form_selector)
+    
+    def get_active_window(self) -> Optional[Dict[str, Any]]:
+        """Get information about the currently active window.
+        
+        Returns:
+            Dictionary with window information or None if not available
+        """
+        return self.window_manager.get_active_window()
+    
+    def list_windows(self) -> List[Dict[str, Any]]:
+        """List all available windows.
+        
+        Returns:
+            List of dictionaries with window information
+        """
+        return self.window_manager.list_windows()
+    
+    def focus_window(self, window_name: str) -> bool:
+        """Focus a specific window by name.
+        
+        Args:
+            window_name: Name or title of the window to focus
+            
+        Returns:
+            True if window was focused successfully
+        """
+        return self.window_manager.focus_window(window_name)
+    
+    def close_window(self, window_name: str) -> bool:
+        """Close a specific window by name.
+        
+        Args:
+            window_name: Name or title of the window to close
+            
+        Returns:
+            True if window was closed successfully
+        """
+        return self.window_manager.close_window(window_name)
+    
+    def find_by_text(self, text: str, element_type: Optional[str] = None) -> List[Any]:
+        """Find elements by their text content.
+        
+        Args:
+            text: Text to search for
+            element_type: Optional element type filter
+            
+        Returns:
+            List of matching elements
+        """
+        return self.element_finder.find_by_text(text, element_type)
+    
+    def find_by_role(self, role: str, name: Optional[str] = None) -> List[Any]:
+        """Find elements by their accessibility role.
+        
+        Args:
+            role: Accessibility role (button, text, dialog, etc.)
+            name: Optional name filter
+            
+        Returns:
+            List of matching elements
+        """
+        return self.element_finder.find_by_role(role, name)
+    
+    def find_in_window(self, window_name: str, selector: str) -> List[Any]:
+        """Find elements within a specific window.
+        
+        Args:
+            window_name: Name of the window to search in
+            selector: Element selector
+            
+        Returns:
+            List of matching elements
+        """
+        return self.element_finder.find_in_window(window_name, selector)
 
 
 class ASQCollection:
