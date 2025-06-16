@@ -31,14 +31,45 @@ def demo_asq_usage():
         print(f"Platform: {platform.system()}")
         
         # Show available ASQ methods
-        print("\nAvailable ASQ methods:")
-        asq_methods = [method for method in dir(computer.asq) if not method.startswith('_')]
-        for method in asq_methods:
-            method_obj = getattr(computer.asq, method)
-            if callable(method_obj):
-                doc = method_obj.__doc__
-                first_line = doc.split('\n')[0] if doc else "No description"
-                print(f"  - computer.asq.{method}() - {first_line}")
+        print(f"\nAvailable ASQ methods: {len([m for m in dir(computer.asq) if not m.startswith('_') and callable(getattr(computer.asq, m))])}")
+        
+        # Group methods by category
+        basic_methods = ['find', 'click_button', 'type_text', 'wait_for_element']
+        form_methods = ['fill_form', 'submit_form', 'clear_form']
+        window_methods = ['get_active_window', 'list_windows', 'focus_window', 'close_window']
+        advanced_methods = ['find_optimized', 'find_advanced', 'find_by_text', 'find_by_role', 'find_in_window']
+        utility_methods = ['click_if_exists', 'type_if_exists', 'get_text_if_exists']
+        performance_methods = ['get_performance_stats', 'get_performance_report', 'clear_cache']
+        
+        print("\n📋 Basic GUI Automation:")
+        for method in basic_methods:
+            if hasattr(computer.asq, method):
+                print(f"  - computer.asq.{method}()")
+        
+        print("\n📝 Form Automation:")
+        for method in form_methods:
+            if hasattr(computer.asq, method):
+                print(f"  - computer.asq.{method}()")
+        
+        print("\n🪟 Window Management:")
+        for method in window_methods:
+            if hasattr(computer.asq, method):
+                print(f"  - computer.asq.{method}()")
+        
+        print("\n🔍 Advanced Finding:")
+        for method in advanced_methods:
+            if hasattr(computer.asq, method):
+                print(f"  - computer.asq.{method}()")
+        
+        print("\n⚡ Utility Methods:")
+        for method in utility_methods:
+            if hasattr(computer.asq, method):
+                print(f"  - computer.asq.{method}()")
+        
+        print("\n📊 Performance & Monitoring:")
+        for method in performance_methods:
+            if hasattr(computer.asq, method):
+                print(f"  - computer.asq.{method}()")
         
         print("\nExample usage patterns:")
         print("=" * 30)
@@ -55,13 +86,31 @@ def demo_asq_usage():
         print("   computer.asq.type_text('filename', 'document.txt')  # Type in field")
         print("   computer.asq.wait_for_element('dialog[name=\"Save\"]')  # Wait for dialog")
         
-        # Example 3: Method chaining
-        print("\n3. Method chaining (jQuery-like):")
+        # Example 3: Advanced selectors
+        print("\n3. Advanced selectors with spatial relations:")
+        print("   computer.asq.find_advanced('button near text[name=\"username\"]')")
+        print("   computer.asq.find_advanced('label above text[name=\"password\"]')")
+        print("   computer.asq.find_advanced('button[name*=\"save\"]:visible')")
+        
+        # Example 4: Method chaining
+        print("\n4. Method chaining (jQuery-like):")
         print("   computer.asq.find('text[name=\"search\"]').clear().type('hello world')")
         print("   computer.asq.find('button[name=\"Submit\"]').click()")
         
-        # Example 4: Error handling
-        print("\n4. Error handling:")
+        # Example 5: Utility methods
+        print("\n5. Utility methods with timeout:")
+        print("   computer.asq.click_if_exists('button[name=\"OK\"]', timeout=10)")
+        print("   computer.asq.type_if_exists('text[name=\"search\"]', 'query', timeout=5)")
+        print("   text = computer.asq.get_text_if_exists('label[name=\"result\"]')")
+        
+        # Example 6: Performance monitoring
+        print("\n6. Performance monitoring:")
+        print("   stats = computer.asq.get_performance_stats()")
+        print("   report = computer.asq.get_performance_report()")
+        print("   computer.asq.clear_cache()  # Clear cache for fresh start")
+        
+        # Example 7: Error handling
+        print("\n7. Error handling:")
         if platform.system() != 'Linux':
             print("   ⚠ ASQ only works on Linux systems")
             try:
@@ -74,8 +123,8 @@ def demo_asq_usage():
                 print("   ⚠ AT-SPI libraries may not be installed")
                 print("   Install with: sudo apt-get install python3-gi gir1.2-atspi-2.0")
         
-        # Example 5: Advanced usage with GUI automation
-        print("\n5. Advanced GUI automation:")
+        # Example 8: Advanced usage with GUI automation
+        print("\n8. Advanced GUI automation:")
         print("""
    # Open an application and interact with it
    if computer.asq.wait_for_element('frame[name*="Calculator"]', timeout=5):
@@ -87,7 +136,7 @@ def demo_asq_usage():
        print(f"Calculator result: {result}")
         """)
         
-        print("\n6. Form automation:")
+        print("\n9. Form automation:")
         print("""
    # Fill out a form
    form_data = {

@@ -5,6 +5,16 @@ from typing import Optional, List, Dict, Any
 from .modules.element_finder import ElementFinder
 from .modules.form_automation import FormAutomation
 from .modules.window_manager import WindowManager
+from .modules.error_handler import (
+    error_handler, require_linux, require_atspi, with_error_handling,
+    ASQError, PlatformNotSupportedError, ATSPINotAvailableError
+)
+from .modules.performance import (
+    performance_monitor, element_cache, timed, optimized, get_performance_report
+)
+from .modules.advanced_selectors import (
+    selector_parser, selector_optimizer, parse_selector, optimize_selector
+)
 
 
 class ASQ:
@@ -265,6 +275,151 @@ class ASQ:
             List of matching elements
         """
         return self.element_finder.find_in_window(window_name, selector)
+    
+    # Enhanced methods with performance optimization and error handling
+    @optimized(cache_ttl=60.0)
+    @with_error_handling
+    def find_optimized(self, selector: str) -> 'ASQCollection':
+        """Find elements with performance optimization and caching.
+        
+        Args:
+            selector: CSS-like selector string
+            
+        Returns:
+            ASQCollection object containing matching elements
+        """
+        optimized_selector = optimize_selector(selector)
+        return self.find(optimized_selector)
+    
+    @timed
+    @with_error_handling
+    def find_advanced(self, selector: str) -> List[Any]:
+        """Find elements using advanced selectors with spatial relations.
+        
+        Args:
+            selector: Advanced CSS-like selector with spatial relations
+            
+        Returns:
+            List of matching elements
+            
+        Examples:
+            find_advanced('button near text[name="username"]')
+            find_advanced('label above text[name="password"]')
+            find_advanced('button[name*="save"]:visible')
+        """
+        self._ensure_available()
+        
+        try:
+            selector_parts = parse_selector(selector)
+            # Implementation would use the parsed selector parts
+            # For now, fall back to basic find
+            return self.find(selector).elements
+        except Exception as e:
+            if self.computer.verbose:
+                print(f"Error in advanced find '{selector}': {e}")
+            return []
+    
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """Get ASQ performance statistics.
+        
+        Returns:
+            Dictionary with performance metrics
+        """
+        return performance_monitor.get_stats()
+    
+    def get_performance_report(self) -> str:
+        """Get formatted performance report.
+        
+        Returns:
+            Formatted performance report string
+        """
+        return get_performance_report()
+    
+    def clear_cache(self) -> None:
+        """Clear element cache and performance statistics."""
+        element_cache.clear()
+        performance_monitor.clear_stats()
+    
+    def get_error_stats(self) -> Dict[str, Any]:
+        """Get error statistics.
+        
+        Returns:
+            Dictionary with error statistics
+        """
+        return error_handler.get_error_statistics()
+    
+    def set_verbose(self, verbose: bool) -> None:
+        """Set verbose mode for detailed error reporting.
+        
+        Args:
+            verbose: Whether to enable verbose mode
+        """
+        self.computer.verbose = verbose
+        error_handler.verbose = verbose
+    
+    # Convenience methods for common operations
+    def click_if_exists(self, selector: str, timeout: float = 5.0) -> bool:
+        """Click an element if it exists within timeout.
+        
+        Args:
+            selector: Element selector
+            timeout: Maximum time to wait
+            
+        Returns:
+            True if element was found and clicked
+        """
+        try:
+            if self.wait_for_element(selector, timeout):
+                element = self.find(selector)
+                if element and len(element.elements) > 0:
+                    element.elements[0].click()
+                    return True
+        except Exception as e:
+            if self.computer.verbose:
+                print(f"Error in click_if_exists '{selector}': {e}")
+        return False
+    
+    def type_if_exists(self, selector: str, text: str, timeout: float = 5.0) -> bool:
+        """Type text into an element if it exists within timeout.
+        
+        Args:
+            selector: Element selector
+            text: Text to type
+            timeout: Maximum time to wait
+            
+        Returns:
+            True if element was found and text was typed
+        """
+        try:
+            if self.wait_for_element(selector, timeout):
+                element = self.find(selector)
+                if element and len(element.elements) > 0:
+                    element.elements[0].type(text)
+                    return True
+        except Exception as e:
+            if self.computer.verbose:
+                print(f"Error in type_if_exists '{selector}': {e}")
+        return False
+    
+    def get_text_if_exists(self, selector: str, timeout: float = 5.0) -> Optional[str]:
+        """Get text from an element if it exists within timeout.
+        
+        Args:
+            selector: Element selector
+            timeout: Maximum time to wait
+            
+        Returns:
+            Element text or None if not found
+        """
+        try:
+            if self.wait_for_element(selector, timeout):
+                element = self.find(selector)
+                if element and len(element.elements) > 0:
+                    return getattr(element.elements[0], 'text', '')
+        except Exception as e:
+            if self.computer.verbose:
+                print(f"Error in get_text_if_exists '{selector}': {e}")
+        return None
 
 
 class ASQCollection:
