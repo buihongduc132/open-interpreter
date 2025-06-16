@@ -243,3 +243,5 @@ numbers.txt
 poetry.lock
 
 config/gh_token
+gh_token
+cw.md
