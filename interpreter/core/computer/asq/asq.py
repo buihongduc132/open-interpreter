@@ -13,7 +13,10 @@ from .modules.screen_capture import ScreenCapture
 from .modules.ocr import OCRProcessor
 from .modules.error_handler import (
     error_handler, require_linux, require_atspi, with_error_handling,
-    ASQError, PlatformNotSupportedError, ATSPINotAvailableError
+    with_input_validation, with_resource_check, with_dependency_check,
+    safe_operation, with_retry_and_fallback,
+    ASQError, PlatformNotSupportedError, ATSPINotAvailableError,
+    ScreenCaptureError, OCRError, TextProcessingError, DependencyError, ResourceError
 )
 from .modules.performance import (
     performance_monitor, element_cache, timed, optimized, get_performance_report
@@ -85,6 +88,8 @@ class ASQ:
                     "Arch Linux: sudo pacman -S python-gobject gtk3"
                 )
     
+    @with_input_validation
+    @with_error_handling
     def find(self, selector: str) -> "ASQCollection":
         """
         Find GUI elements using CSS-like selectors.
@@ -718,6 +723,8 @@ class ASQ:
         return self.text_processing.format_text_in_field(selector, formatting)
     
     # Screen Capture Methods
+    @with_resource_check(disk_mb=10)
+    @safe_operation(fallback_result=None)
     def take_screenshot(self, save_path: Optional[str] = None, 
                        return_base64: bool = True) -> Optional[Any]:
         """Take a screenshot of the entire screen.
@@ -729,7 +736,10 @@ class ASQ:
         Returns:
             ScreenshotInfo object or None if failed
         """
-        return self.screen_capture.take_screenshot(save_path, return_base64)
+        try:
+            return self.screen_capture.take_screenshot(save_path, return_base64)
+        except Exception as e:
+            raise ScreenCaptureError(f"Failed to take screenshot: {e}") from e
     
     def screenshot_element(self, selector: str, save_path: Optional[str] = None,
                           return_base64: bool = True) -> Optional[Any]:
@@ -784,6 +794,8 @@ class ASQ:
         return self.screen_capture.verify_element_visible(selector)
     
     # OCR Methods
+    @with_resource_check(memory_mb=100)
+    @safe_operation(fallback_result=None)
     def extract_text_from_image(self, image_path: str, 
                                engine: Optional[str] = None,
                                language: str = 'eng') -> Optional[Any]:
@@ -797,7 +809,13 @@ class ASQ:
         Returns:
             OCRResult object or None if failed
         """
-        return self.ocr.extract_text_from_image(image_path, engine, language)
+        try:
+            error_handler.validate_input(image_path, str, 'image_path')
+            if not image_path.strip():
+                raise ValueError("Image path cannot be empty")
+            return self.ocr.extract_text_from_image(image_path, engine, language)
+        except Exception as e:
+            raise OCRError(f"Failed to extract text from image: {e}") from e
     
     def extract_text_from_screen(self, region: Optional[Tuple[int, int, int, int]] = None,
                                 engine: Optional[str] = None,
