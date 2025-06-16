@@ -2,6 +2,7 @@ import inspect
 import json
 
 from .ai.ai import Ai
+from .asq.asq import ASQ
 from .browser.browser import Browser
 from .calendar.calendar import Calendar
 from .clipboard.clipboard import Clipboard
@@ -44,6 +45,7 @@ class Computer:
         self.docs = Docs(self)
         self.ai = Ai(self)
         self.files = Files(self)
+        self.asq = ASQ(self)
 
         self.emit_images = True
         self.api_base = "https://api.openinterpreter.com/v0"
@@ -102,6 +104,7 @@ Do not import the computer module, or any of its sub-modules. They are already i
             self.docs,
             self.ai,
             self.files,
+            self.asq,
         ]
 
     def _get_all_computer_tools_signature_and_description(self):
