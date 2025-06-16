@@ -242,4 +242,4 @@ file.txt
 numbers.txt
 poetry.lock
 
-config/
+config/gh_token
